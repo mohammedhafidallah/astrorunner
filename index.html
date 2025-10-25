@@ -79,11 +79,9 @@
 <dialog id="over">
   <h3>Game Over</h3>
   <p id="final">Score: 0</p>
-  <form method="dialog" class="row" style="margin-top:10px;gap:8px">
-    <input id="nameInput" placeholder="Your name" style="padding:10px;border-radius:10px;border:1px solid #333;background:#0b1220;color:#fff" />
-    <button class="btn" id="saveScore">Save score</button>
+  <div class="row" style="margin-top:10px;gap:8px">
     <button class="btn" id="again">Play again</button>
-  </form>
+  </div>
 </dialog>
 <dialog id="board">
   <h3>Leaderboard</h3>
@@ -260,7 +258,8 @@ document.getElementById('again').addEventListener('click',revive);
 // Leaderboard buttons
 document.getElementById('showBoard').addEventListener('click',()=>showLeaderboard());
 document.getElementById('closeBoard').addEventListener('click',()=>document.getElementById('board').close());
-document.getElementById('saveScore').addEventListener('click',(e)=>{e.preventDefault(); saveCurrentScore();});
+// save button removed from Game Over dialog; no handler needed.
+ saveCurrentScore();});
 
 // ——— Self-tests (non-destructive, run on load) ———
 (function runTests(){
