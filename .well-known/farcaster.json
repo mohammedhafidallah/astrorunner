@@ -1,23 +1,13 @@
 {
   "accountAssociation": {
-    "header": "<paste-generated-header>",
-    "payload": "<paste-generated-payload>",
-    "signature": "<paste-generated-signature>"
+    "header": "eyJmaWQiOjUzMTUyOCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDZENjc0MzhlZTY0Njk2RGY2NDA2MDk1ZWU4MTNjMzA4MDIyRDZENDEifQ",
+    "payload": "eyJkb21haW4iOiJhc3Ryb3J1bm5lci52ZXJjZWwuYXBwIn0",
+    "signature": "0Vd5ii4NdIrU4c7nLU5qmdyIMevb6CQo6bvUvwxIMRZSjgk79cY5EDcELoZYwmHwIsadzp0JmW1G6xrQGnO+sBs="
   },
   "miniapp": {
     "version": "1",
     "name": "Astro Runner",
     "description": "Endless runner. Pay-to-play. Arrow keys/WASD to fly, Space to dash.",
-    "iconUrl": "https://astrorunner.vercel.app/icon.png",
-    "splashImageUrl": "https://astrorunner.vercel.app/og.png",
-    "homeUrl": "https://astrorunner.vercel.app/",
-    "canonicalDomain": "astrorunner.vercel.app",
-    "requiredChains": ["eip155:8453"],
-    "requiredCapabilities": [
-      "actions.ready",
-      "wallet.getEthereumProvider"
-    ],
-    "tags": ["game", "miniapp", "base"]
+    "homeUrl": "https://astrorunner.vercel.app/"
   }
 }
-
