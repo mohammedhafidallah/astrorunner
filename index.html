@@ -8,7 +8,7 @@
   :root{--bg:#070a12;--fg:#eaf4ff;--brand:#ffcc00;--muted:#9fb0c3;--panel:#0b1220;--ok:#9be28a;--err:#ff7b7b}
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#121a2d 0,#070a12 60%);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;text-align:center}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#121a2d 0,#070a12 60%);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;text-align:center;overflow:hidden}
   a{color:#66ccff;text-decoration:none}
   .wrap{min-height:100%;display:flex;flex-direction:column}
 
@@ -293,7 +293,22 @@ document.getElementById('closeBoard').addEventListener('click',()=>document.getE
 })();
 
 // ——— Fullscreen sizing ———
-function resizeCanvas(){W=window.innerWidth; H=window.innerHeight - 120; if(H<200) H=200; const dpr=window.devicePixelRatio||1; cvs.width=W*dpr; cvs.height=H*dpr; cvs.style.width=W+'px'; cvs.style.height=H+'px'; ctx.setTransform(dpr,0,0,dpr,0,0);} 
+function resizeCanvas(){
+  const hud = document.getElementById('hud');
+  const mobile = document.getElementById('mobile');
+  const topH = hud && hud.style.display!=='none' ? hud.getBoundingClientRect().height : 0;
+  // Only reserve space for mobile controls when they're visible
+  const mobileVisible = getComputedStyle(mobile).display !== 'none';
+  const bottomH = mobileVisible ? mobile.getBoundingClientRect().height + 12 : 0;
+  W = window.innerWidth;
+  H = Math.max(200, Math.floor(window.innerHeight - topH - bottomH));
+  const dpr = window.devicePixelRatio || 1;
+  cvs.width = Math.max(1, W * dpr);
+  cvs.height = Math.max(1, H * dpr);
+  cvs.style.width = W + 'px';
+  cvs.style.height = H + 'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
 </script>
 
 <!-- ——— FARCASTER MINIAPP PAYMENT (Base) ——— -->
