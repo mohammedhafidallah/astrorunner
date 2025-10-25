@@ -47,7 +47,7 @@
 <div class="wrap">
   <section id="intro" aria-labelledby="title">
     <h1 id="title">🚀 ASTRO RUNNER</h1>
-    <p class="lead">Dodge asteroids and energy walls in this endless runner. Pay a small Base fee to start. Keyboard: ← ↑ ↓ → to move, Space to dash. Mobile controls included.</p>
+    <p class="lead">Dodge asteroids in this endless runner. Pay a small Base fee to start. Keyboard: ← ↑ ↓ → to move, Space to dash. Mobile controls included.</p>
     <div class="row">
       <button class="btn" id="play">Play</button>
     </div>
@@ -203,10 +203,8 @@ function draw(){
   ctx.fillStyle='#0a1222'; ctx.fillRect(0,0,W,H);
   ctx.fillStyle='#182442'; for(const s of stars){ctx.fillRect(s.x,s.y,2,2)}
 
-  // player ship
-  ctx.save(); ctx.translate(player.x, player.y); ctx.fillStyle='#7dd3fc';
-  ctx.beginPath(); ctx.moveTo(18,0); ctx.lineTo(-12,-14); ctx.lineTo(-6,-4); ctx.lineTo(-18,-2); ctx.lineTo(-18,2); ctx.lineTo(-6,4); ctx.lineTo(-12,14); ctx.closePath(); ctx.fill();
-  ctx.fillStyle='#fde047'; ctx.fillRect(-22,-3, Math.random()*6+6,6); ctx.restore();
+  // player ship (spaceship)
+  drawSpaceship(ctx, player, t);
 
   // obstacles (asteroids)
   for(const o of obstacles){
@@ -219,6 +217,81 @@ function draw(){
 }
 
 function roundedRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+// --- Spaceship renderer ---
+function drawSpaceship(ctx, p, time){
+  ctx.save();
+  ctx.translate(p.x, p.y);
+
+  // Subtle tilt based on vertical speed (max ~20°)
+  const roll = clamp(p.vy / 320, -0.35, 0.35);
+  ctx.rotate(roll);
+
+  // Size baseline
+  const L = 36;     // body length
+  const BW = 18;    // body width
+  const noseL = 10; // nose cone length
+  const tailX = -L/2;
+
+  // Body
+  ctx.fillStyle = '#9dbcfb';
+  roundedRect(ctx, -L/2, -BW/2, L, BW, BW/2);
+  ctx.fill();
+
+  // Nose cone
+  ctx.fillStyle = '#c7d2fe';
+  ctx.beginPath();
+  ctx.moveTo(L/2 + noseL, 0);
+  ctx.lineTo(L/2 - 2, -BW/2 + 2);
+  ctx.lineTo(L/2 - 2,  BW/2 - 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Wings
+  ctx.fillStyle = '#a78bfa';
+  ctx.beginPath();
+  ctx.moveTo(-6, -BW/2 + 2);
+  ctx.lineTo(-16, -BW/2 - 8);
+  ctx.lineTo(4, -6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-6, BW/2 - 2);
+  ctx.lineTo(-16, BW/2 + 8);
+  ctx.lineTo(4, 6);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cockpit
+  ctx.fillStyle = '#0ea5e9';
+  ctx.beginPath();
+  ctx.ellipse(8, 0, 6, 7, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Engine flame
+  const flicker = 1 + 0.4 * Math.sin((time||0) * 40);
+  const flameLen = (p.dash > 0 ? 26 : 16) * flicker;
+
+  ctx.fillStyle = '#fde047';
+  ctx.beginPath();
+  ctx.moveTo(tailX - flameLen, 0);
+  ctx.lineTo(tailX, -5);
+  ctx.lineTo(tailX,  5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#fbbf24';
+  ctx.beginPath();
+  ctx.moveTo(tailX - flameLen*0.6, 0);
+  ctx.lineTo(tailX, -3);
+  ctx.lineTo(tailX,  3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+}
 
 // ——— Input ———
 const keys=new Set();
