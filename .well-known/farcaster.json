@@ -8,7 +8,7 @@
     "version": "1",
     "name": "Astro Runner",
     "homeUrl": "https://astrorunner.vercel.app/",
-    "description": "Endless runner. Pay-to-play. Arrow keys/WASD to fly, Space to dash.",
+    "description": "Endless runner dash to play Arrow keys WASD to fly Space to dash",
     "iconUrl": "https://postimg.cc/qzb8fLSY"
   }
 }
