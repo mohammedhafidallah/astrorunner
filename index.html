@@ -117,18 +117,33 @@ function initCanvas(){
   }
 }
 
-function reset(){obstacles.length=0;score=0;player.x=W*0.15;player.y=H*0.5;player.vx=0;player.vy=0;player.dash=0;player.dashCD=0;over=false}
+function reset(){
+  obstacles.length=0;
+  score=0;
+  player.x=W*0.15; player.y=H*0.5;
+  player.vx=0; player.vy=0;
+  player.dash=0; player.dashCD=0;
+  over=false;
 
+  // Reset difficulty each run
+  t = 0;
+  spawnTimer = 0;
+  spawnEvery = 1.1;
+}
+
+// *** Spawner — ONLY ASTEROIDS (no poles/walls) ***
 function spawnObstacle(){
-  const t=Math.random();
-  if(t<0.5){ // wall with gap
-    const gapH=rng(90,150);const gapY=rng(80,H-80-gapH);const w=40;const x=W+20;
-    obstacles.push({x,y:0,w,h:gapY,type:'wall'});
-    obstacles.push({x,y:gapY+gapH,w,h:H-(gapY+gapH),type:'wall'});
-  }else{ // asteroid
-    const size=rng(18,40);const y=rng(50,H-50);
-    obstacles.push({x:W+20,y:y-size,w:size*2,h:size*2,type:'rock',spin:rng(-2,2),a:0});
-  }
+  const size=rng(18,40);
+  const y=rng(50,H-50);
+  obstacles.push({
+    x: W+20,
+    y: y-size,
+    w: size*2,
+    h: size*2,
+    type: 'rock',
+    spin: rng(-2,2),
+    a: 0
+  });
 }
 
 let spawnTimer=0, spawnEvery=1.1; // seconds
@@ -193,14 +208,10 @@ function draw(){
   ctx.beginPath(); ctx.moveTo(18,0); ctx.lineTo(-12,-14); ctx.lineTo(-6,-4); ctx.lineTo(-18,-2); ctx.lineTo(-18,2); ctx.lineTo(-6,4); ctx.lineTo(-12,14); ctx.closePath(); ctx.fill();
   ctx.fillStyle='#fde047'; ctx.fillRect(-22,-3, Math.random()*6+6,6); ctx.restore();
 
-  // obstacles
+  // obstacles (asteroids)
   for(const o of obstacles){
-    if(o.type==='wall'){
-      ctx.fillStyle='#fca5a5'; ctx.fillRect(o.x,o.y,o.w,o.h);
-    }else{
-      ctx.save(); ctx.translate(o.x+o.w/2,o.y+o.h/2); ctx.rotate(o.a||0);
-      ctx.fillStyle='#c4b5fd'; roundedRect(ctx,-o.w/2,-o.h/2,o.w,o.h,8); ctx.fill(); ctx.restore();
-    }
+    ctx.save(); ctx.translate(o.x+o.w/2,o.y+o.h/2); ctx.rotate(o.a||0);
+    ctx.fillStyle='#c4b5fd'; roundedRect(ctx,-o.w/2,-o.h/2,o.w,o.h,8); ctx.fill(); ctx.restore();
   }
 
   // UI
@@ -241,7 +252,8 @@ function endGame(){playing=false; over=true; best=Math.max(best, Math.floor(scor
 // Leaderboard logic
 function getLeaderboard(){return JSON.parse(localStorage.getItem('astroLeaderboard')||'[]');}
 function setLeaderboard(lb){localStorage.setItem('astroLeaderboard', JSON.stringify(lb.slice(0,10)));}
-function saveCurrentScore(){const name=(document.getElementById('nameInput').value||'Anon').slice(0,20); const s=Math.floor(score); const lb=getLeaderboard(); lb.push({name,score:s,ts:Date.now()}); lb.sort((a,b)=>b.score-a.score||a.ts-b.ts); setLeaderboard(lb); showLeaderboard();}
+// keep function (unused) to avoid breaking anything referencing it
+function saveCurrentScore(){const name=(document.getElementById('nameInput')?.value||'Anon').slice(0,20); const s=Math.floor(score); const lb=getLeaderboard(); lb.push({name,score:s,ts:Date.now()}); lb.sort((a,b)=>b.score-a.score||a.ts-b.ts); setLeaderboard(lb); showLeaderboard();}
 function showLeaderboard(){const lb=getLeaderboard(); const list=document.getElementById('boardList'); list.innerHTML=lb.length? lb.map((e,i)=>`<li>#${i+1} ${e.name} — ${e.score}</li>`).join('') : '<li>No scores yet.</li>'; document.getElementById('board').showModal();}
 
 function revive(){document.getElementById('over').close(); reset(); startLoop()}
@@ -253,12 +265,12 @@ addEventListener('resize',()=>{resizeCanvas()});
 // HUD buttons
 document.getElementById('pause').addEventListener('click',pauseToggle);
 
-document.getElementById('again').addEventListener('click',revive);
+// Removed the old "again → revive" binding so replay can't bypass payment
+// document.getElementById('again').addEventListener('click',revive);
 
 // Leaderboard buttons
 document.getElementById('showBoard').addEventListener('click',()=>showLeaderboard());
 document.getElementById('closeBoard').addEventListener('click',()=>document.getElementById('board').close());
-// save button removed from Game Over dialog; no handler needed.
 
 // ——— Self-tests (non-destructive, run on load) ———
 (function runTests(){
@@ -296,7 +308,6 @@ function resizeCanvas(){
   const hud = document.getElementById('hud');
   const mobile = document.getElementById('mobile');
   const topH = hud && hud.style.display!=='none' ? hud.getBoundingClientRect().height : 0;
-  // Only reserve space for mobile controls when they're visible
   const mobileVisible = getComputedStyle(mobile).display !== 'none';
   const bottomH = mobileVisible ? mobile.getBoundingClientRect().height + 12 : 0;
   W = window.innerWidth;
@@ -318,42 +329,100 @@ function resizeCanvas(){
   const RECIPIENT = '0x8C6e7978ee3324196ea7e478830fF9cD4AD7D507'; // TODO: replace with your address
   const AMOUNT_ETH = '0.00001';
   const USE_BASE_SEPOLIA = false;
-  const BASE_MAINNET = { chainId:'0x2105', explorer:'https://basescan.org/tx/' };
-  const BASE_SEPOLIA = { chainId:'0x14a34', explorer:'https://sepolia.basescan.org/tx/' };
+
+  // Proper chain descriptors so wallet_addEthereumChain can succeed
+  const BASE_MAINNET = {
+    chainId: '0x2105',                  // 8453
+    chainName: 'Base',
+    rpcUrls: ['https://mainnet.base.org'],
+    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    blockExplorerUrls: ['https://basescan.org']
+  };
+  const BASE_SEPOLIA = {
+    chainId: '0x14a34',                 // 84532
+    chainName: 'Base Sepolia',
+    rpcUrls: ['https://sepolia.base.org'],
+    nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+    blockExplorerUrls: ['https://sepolia.basescan.org']
+  };
   const TARGET = USE_BASE_SEPOLIA ? BASE_SEPOLIA : BASE_MAINNET;
 
   const statusEl = document.getElementById('status');
   const playBtn = document.getElementById('play');
+  const againBtn = document.getElementById('again');
 
-  function parseEther(x){const [w,f='']=String(x).split('.');const frac=(f+'0'.repeat(18)).slice(0,18);return '0x'+(BigInt(w)*10n**18n+BigInt(frac)).toString(16)}
-  async function getProvider(){try{const p=await sdk.wallet.getEthereumProvider(); if(p) return p;}catch{} return window.ethereum??null}
-  async function ensureChain(p,chainId){const c=(await p.request({method:'eth_chainId'}))?.toLowerCase(); if(c===chainId.toLowerCase())return; try{await p.request({method:'wallet_switchEthereumChain',params:[{chainId}]});}
-    catch(e){if(e?.code===4902){await p.request({method:'wallet_addEthereumChain',params:[{chainId}]}); await p.request({method:'wallet_switchEthereumChain',params:[{chainId}]});} else throw e;}}
+  function parseEther(x){
+    const [w,f='']=String(x).split('.');
+    const frac=(f+'0'.repeat(18)).slice(0,18);
+    return '0x'+(BigInt(w)*10n**18n+BigInt(frac)).toString(16);
+  }
+
+  async function getProvider(){
+    try{ const p = await sdk.wallet.getEthereumProvider(); if(p) return p; }catch{}
+    return window.ethereum ?? null;
+  }
+
+  async function ensureChain(p, chain){
+    const current = (await p.request({method:'eth_chainId'}))?.toLowerCase();
+    if(current === chain.chainId.toLowerCase()) return;
+    try{
+      await p.request({ method:'wallet_switchEthereumChain', params:[{ chainId: chain.chainId }] });
+    }catch(e){
+      if(e?.code === 4902){
+        await p.request({ method:'wallet_addEthereumChain', params:[ chain ] });
+        await p.request({ method:'wallet_switchEthereumChain', params:[{ chainId: chain.chainId }] });
+      }else{
+        throw e;
+      }
+    }
+  }
 
   async function requiredPayment(){
     statusEl.innerHTML='<b>Connecting wallet…</b>';
     const provider = await getProvider();
     if(!provider){statusEl.innerHTML+=' <span class="err">No wallet detected.</span>'; throw new Error('NO_PROVIDER')}
     const [from] = await provider.request({method:'eth_requestAccounts'});
-    await ensureChain(provider, TARGET.chainId);
+
+    await ensureChain(provider, TARGET);
+
     statusEl.innerHTML += `<div>Sending ${AMOUNT_ETH} ETH to ${RECIPIENT.slice(0,6)}…${RECIPIENT.slice(-4)}</div>`;
-    const hash = await provider.request({method:'eth_sendTransaction', params:[{from,to:RECIPIENT,value:parseEther(AMOUNT_ETH)}]});
-    statusEl.innerHTML += `<div class="ok">TX sent! <a target="_blank" href="${TARGET.explorer}${hash}">View TX</a></div>`;
+    const hash = await provider.request({
+      method:'eth_sendTransaction',
+      params:[{ from, to:RECIPIENT, value:parseEther(AMOUNT_ETH) }]
+    });
+    const explorerBase = (TARGET.blockExplorerUrls && TARGET.blockExplorerUrls[0]) || '';
+    statusEl.innerHTML += `<div class="ok">TX sent! ${explorerBase ? `<a target="_blank" href="${explorerBase}/tx/${hash}">View TX</a>` : ''}</div>`;
     return hash;
   }
 
-  function showGame(){document.getElementById('intro').style.display='none';
-    document.getElementById('hud').style.display='flex'; document.getElementById('stage').style.display='block';
+  function showGame(){
+    document.getElementById('intro').style.display='none';
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('stage').style.display='block';
     document.getElementById('best').textContent='Best: '+(Number(localStorage.getItem('astroBest')||0));
-    reset(); startLoop();}
-
-  async function payThenStart(btn){
-    try{btn.disabled=true; await requiredPayment(); showGame();}
-    catch(e){statusEl.innerHTML += '<div class="err">Payment cancelled or failed.</div>'}
-    finally{btn.disabled=false}
+    reset(); startLoop();
   }
 
+  async function payThenStart(btn){
+    try{
+      btn.disabled=true;
+      await requiredPayment();
+      // Close the Game Over dialog if it is open
+      const overDlg = document.getElementById('over');
+      if (overDlg && overDlg.open) overDlg.close();
+      showGame();
+    }catch(e){
+      statusEl.innerHTML += '<div class="err">Payment cancelled or failed.</div>';
+    }finally{
+      btn.disabled=false;
+    }
+  }
+
+  // First run: pay then play
   playBtn.addEventListener('click',e=>{e.preventDefault(); payThenStart(playBtn)});
+
+  // Replay: require payment again
+  againBtn.addEventListener('click',e=>{e.preventDefault(); payThenStart(againBtn)});
 </script>
 </body>
 </html>
