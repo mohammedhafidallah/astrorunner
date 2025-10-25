@@ -1,1 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Astro Runner — Pay to Play</title>
+<style>
+  :root{--bg:#070a12;--fg:#eaf4ff;--brand:#ffcc00;--muted:#9fb0c3;--panel:#0b1220;--ok:#9be28a;--err:#ff7b7b}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#121a2d 0,#070a12 60%);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;text-align:center}
+  a{color:#66ccff;text-decoration:none}
+  .wrap{min-height:100%;display:flex;flex-direction:column}
+
+  /* Intro */
+  #intro{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px}
+  h1{font-size:clamp(2rem,6vw,3rem);margin:0;color:var(--brand)}
+  .lead{max-width:560px;color:var(--muted)}
+  .btn{background:var(--brand);color:#111;border:none;border-radius:14px;padding:14px 24px;font-weight:800;cursor:pointer}
+  .btn[disabled]{opacity:.6;cursor:not-allowed}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+
+  /* HUD */
+  #hud{display:none;gap:12px;align-items:center;justify-content:center;padding:10px}
+  .chip{background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.35);color:var(--brand);border-radius:999px;padding:8px 12px;font-weight:700}
+
+  /* Stage */
+  #stage{display:none;max-width:min(96vw,720px);margin:6px auto 18px;padding:0 12px}
+  .frame{position:relative;border:2px solid var(--brand);border-radius:12px;background:linear-gradient(180deg,#0d1529,#070b15)}
+  canvas#game{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:10px}
+
+  /* Controls */
+  #mobile{display:none;grid-template-columns:1fr 1fr 1fr;gap:10px;max-width:720px;margin:0 auto 14px;padding:0 12px}
+  .ctrl{padding:12px;border:1px solid #2a3346;border-radius:12px;background:#0b1220;color:#cfe3ff;font-weight:800}
+
+  /* Status */
+  #status{min-height:1.5em;color:var(--muted)}
+  #status .ok{color:var(--ok)}
+  #status .err{color:var(--err)}
+
+  /* Dialog */
+  dialog{border:none;border-radius:16px;background:#0b1220;color:#fff;padding:22px;max-width:min(92vw,420px)}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="intro" aria-labelledby="title">
+    <h1 id="title">🚀 ASTRO RUNNER</h1>
+    <p class="lead">Dodge asteroids and energy walls in this endless runner. Pay a small Base fee to start. Keyboard: ← ↑ ↓ → to move, Space to dash. Mobile controls included.</p>
+    <div class="row">
+      <button class="btn" id="play">Pay & Play</button>
+      <button class="btn" id="try">Try (dev)</button>
+    </div>
+    <div id="status"></div>
+  </section>
+
+  <div id="hud">
+    <div class="chip" id="score">Score: 0</div>
+    <div class="chip" id="best">Best: 0</div>
+    <button class="btn" id="pause">Pause</button>
+  </div>
+
+  <section id="stage">
+    <div class="frame">
+      <canvas id="game" width="960" height="540" tabindex="0" aria-label="Astro Runner"></canvas>
+    </div>
+  </section>
+
+  <div id="mobile">
+    <button class="ctrl" id="left">◀︎</button>
+    <button class="ctrl" id="dash">⤓ Dash</button>
+    <button class="ctrl" id="right">▶︎</button>
+  </div>
+</div>
+
+<dialog id="over">
+  <h3>Game Over</h3>
+  <p id="final">Score: 0</p>
+  <div class="row" style="margin-top:10px">
+    <button class="btn" id="again">Play again</button>
+  </div>
+</dialog>
+
+<script>
+/********************
+ * ASTRO RUNNER GAME
+ ********************/
+const W=960,H=540; // canvas size (kept responsive with CSS)
+const rng = (a,b)=>a+Math.random()*(b-a);
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+
+let cvs,ctx;let t=0, dt=0, last=0, raf=0; // timing
+let playing=false, paused=false, over=false;
+
+const player={x:W*0.15,y:H*0.5,r:16,vx:0,vy:0,speed:320,dash:0,dashCD:0};
+let obstacles=[]; // {x,y,w,h,type}
+let stars=[]; // parallax
+let score=0, best=Number(localStorage.getItem('astroBest')||0);
+
+function initCanvas(){cvs=document.getElementById('game');ctx=cvs.getContext('2d');cvs.focus();
+  // stars
+  stars.length=0;for(let i=0;i<120;i++){stars.push({x:Math.random()*W,y:Math.random()*H,z:Math.random()*1.5+0.2});}
+}
+
+function reset(){obstacles.length=0;score=0;player.x=W*0.15;player.y=H*0.5;player.vx=0;player.vy=0;player.dash=0;player.dashCD=0;over=false}
+
+function spawnObstacle(){const laneH=H/6; // random size walls/asteroids
+  const t=Math.random();
+  if(t<0.5){ // wall with gap
+    const gapH=rng(90,150);const gapY=rng(80,H-80-gapH);const w=40;const x=W+20;
+    obstacles.push({x,y:0,w,h:gapY,type:'wall'});
+    obstacles.push({x,y:gapY+gapH,w,h:H-(gapY+gapH),type:'wall'});
+  }else{ // asteroid
+    const size=rng(18,40);const y=rng(50,H-50);
+    obstacles.push({x:W+20,y:y-size,w:size*2,h:size*2,type:'rock',spin:rng(-2,2),a:0});
+  }
+}
+
+let spawnTimer=0, spawnEvery=1.1; // seconds
+
+function update(time){dt=(time-last)/1000||0; last=time; if(!playing||paused){raf=requestAnimationFrame(update);return draw();}
+  t+=dt; spawnTimer+=dt; if(spawnTimer>spawnEvery){spawnTimer=0; spawnObstacle(); spawnEvery=clamp(spawnEvery-0.01,0.7,2)}
+
+  // Parallax stars
+  for(const s of stars){s.x-= (0.6+s.z)*120*dt; if(s.x<-2){s.x=W+Math.random()*50; s.y=Math.random()*H;}}
+
+  // Player physics
+  const input = inputState();
+  // horizontal
+  const ax=(input.right-input.left)*player.speed*2.5;
+  player.vx += ax*dt;
+  player.vx *= 0.92; // friction
+  player.x += player.vx*dt;
+  player.x = clamp(player.x, 18, W*0.65);
+
+  // vertical
+  const ay=(input.down-input.up)*player.speed*2.0;
+  player.vy += ay*dt;
+  player.vy *= 0.92; // friction
+  player.y += player.vy*dt;
+  player.y = clamp(player.y, 30, H-30);
+
+  // dash
+  player.dashCD = Math.max(0, player.dashCD-dt);
+  if(input.dash && player.dashCD===0){player.dash=0.2; player.dashCD=1.2}
+  if(player.dash>0){player.x += 560*dt; player.dash-=dt}
+
+  // obstacles move
+  const speed = 260 + Math.min(440, t*12);
+  for(const o of obstacles){o.x -= speed*dt; if(o.type==='rock'){o.a+=o.spin*dt}}
+  obstacles = obstacles.filter(o=>o.x+o.w>-40);
+
+  // collisions
+  for(const o of obstacles){
+    if(rectCircleCollide(o, player)) return endGame();
+  }
+
+  score += dt*10; // time based
+  draw();
+  raf=requestAnimationFrame(update);
+}
+
+function rectCircleCollide(o,p){ // rough but fast
+  const rx=o.x, ry=o.y, rw=o.w, rh=o.h;
+  const cx=p.x, cy=p.y, r=p.r;
+  const nx=clamp(cx, rx, rx+rw);
+  const ny=clamp(cy, ry, ry+rh);
+  const dx=cx-nx, dy=cy-ny; return (dx*dx+dy*dy) < r*r;
+}
+
+function draw(){ctx.clearRect(0,0,W,H);
+  // bg stars
+  ctx.fillStyle='#0a1222'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#182442';
+  for(const s of stars){ctx.fillRect(s.x,s.y,2,2)}
+
+  // player ship
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.fillStyle='#7dd3fc';
+  ctx.beginPath(); ctx.moveTo(18,0); ctx.lineTo(-12,-14); ctx.lineTo(-6,-4); ctx.lineTo(-18,-2); ctx.lineTo(-18,2); ctx.lineTo(-6,4); ctx.lineTo(-12,14); ctx.closePath(); ctx.fill();
+  // engine flare
+  ctx.fillStyle='#fde047'; ctx.fillRect(-22,-3, Math.random()*6+6,6);
+  ctx.restore();
+
+  // obstacles
+  for(const o of obstacles){
+    if(o.type==='wall'){
+      ctx.fillStyle='#fca5a5'; ctx.fillRect(o.x,o.y,o.w,o.h);
+    }else{
+      ctx.save(); ctx.translate(o.x+o.w/2,o.y+o.h/2); ctx.rotate(o.a||0);
+      ctx.fillStyle='#c4b5fd';
+      roundedRect(ctx,-o.w/2,-o.h/2,o.w,o.h,8); ctx.fill(); ctx.restore();
+    }
+  }
+
+  // UI
+  document.getElementById('score').textContent = 'Score: '+Math.floor(score);
+}
+
+function roundedRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+// ——— Input ———
+const keys=new Set();
+function inputState(){return {left: keys.has('ArrowLeft')||keys.has('KeyA'), right: keys.has('ArrowRight')||keys.has('KeyD'), up: keys.has('ArrowUp')||keys.has('KeyW'), down: keys.has('ArrowDown')||keys.has('KeyS'), dash: keys.has('Space')}}
+addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyA','KeyD','KeyW','KeyS'].includes(e.code)){keys.add(e.code); e.preventDefault()}})
+addEventListener('keyup',e=>keys.delete(e.code))
+
+// mobile buttons
+function wireMobile(){const m=document.getElementById('mobile');
+  const touch=(id,code)=>{const el=document.getElementById(id); el.addEventListener('touchstart',e=>{keys.add(code); e.preventDefault()}); el.addEventListener('touchend',e=>{keys.delete(code); e.preventDefault()})}
+  touch('left','ArrowLeft'); touch('right','ArrowRight'); touch('dash','Space');
+  // show on small screens
+  if(matchMedia('(max-width: 800px)').matches){m.style.display='grid'}
+}
+
+function startLoop(){playing=true; paused=false; document.getElementById('hud').style.display='flex'; document.getElementById('stage').style.display='block';
+  cancelAnimationFrame(raf); last=performance.now(); raf=requestAnimationFrame(update);
+}
+
+function pauseToggle(){paused=!paused; document.getElementById('pause').textContent = paused?'Resume':'Pause'; if(!paused) last=performance.now()}
+
+function endGame(){playing=false; over=true; best=Math.max(best, Math.floor(score)); localStorage.setItem('astroBest', best);
+  document.getElementById('best').textContent='Best: '+best;
+  const d=document.getElementById('over'); document.getElementById('final').textContent='Score: '+Math.floor(score);
+  d.showModal();}
+
+function revive(){document.getElementById('over').close(); reset(); startLoop()}
+
+// ——— Boot ———
+initCanvas(); wireMobile();
+
+// HUD buttons
+document.getElementById('pause').addEventListener('click',pauseToggle);
+
+document.getElementById('again').addEventListener('click',revive);
+
+// Dev try mode (no pay)
+document.getElementById('try').addEventListener('click',()=>{document.getElementById('intro').style.display='none'; document.getElementById('best').textContent='Best: '+best; reset(); startLoop();});
+
+// ——— Self-tests (non-destructive, run on load) ———
+(function runTests(){
+  const results=[]; const assert=(name,cond)=>results.push({name,pass:!!cond});
+  // clamp tests
+  assert('clamp low', clamp(-5,0,10)===0);
+  assert('clamp mid', clamp(5,0,10)===5);
+  assert('clamp high', clamp(15,0,10)===10);
+  // collision tests
+  assert('rectCircleCollide hit', rectCircleCollide({x:0,y:0,w:3,h:3},{x:5,y:5,r:4})===true);
+  assert('rectCircleCollide miss', rectCircleCollide({x:0,y:0,w:3,h:3},{x:20,y:20,r:2})===false);
+  // input tests
+  keys.clear(); keys.add('ArrowUp'); let st=inputState();
+  assert('input up true', st.up===true);
+  assert('input left false', st.left===false);
+  // spawnObstacle smoke test (adds >0)
+  const before=obstacles.length; spawnObstacle(); const added=obstacles.length-before; assert('spawnObstacle adds', added>0);
+  const newObs=obstacles.slice(before); assert('obstacle numeric x', newObs.every(o=>typeof o.x==='number'));
+  // cleanup
+  obstacles.length=before;
+  // report
+  const ok=results.every(r=>r.pass); const statusEl=document.getElementById('status');
+  const html=`<details style="margin-top:8px"><summary>Self-tests: ${ok?'ALL PASS ✅':'Some failed ❌'}</summary><ul>`+
+    results.map(r=>`<li>${r.pass?'✅':'❌'} ${r.name}</li>`).join('')+`</ul></details>`;
+  statusEl.insertAdjacentHTML('beforeend', html);
+  console.log('Self-tests', results);
+})();
+</script>
+
+<!-- ——— FARCASTER MINIAPP PAYMENT (Base) ——— -->
+<script type="module">
+  import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
+  sdk.actions.ready();
+
+  const RECIPIENT = '0xf19b46a5aE904009006b1e06DFb842856cb97C6f'; // TODO: replace with your address
+  const AMOUNT_ETH = '0.00001';
+  const USE_BASE_SEPOLIA = false;
+  const BASE_MAINNET = { chainId:'0x2105', explorer:'https://basescan.org/tx/' };
+  const BASE_SEPOLIA = { chainId:'0x14a34', explorer:'https://sepolia.basescan.org/tx/' };
+  const TARGET = USE_BASE_SEPOLIA ? BASE_SEPOLIA : BASE_MAINNET;
+
+  const statusEl = document.getElementById('status');
+  const playBtn = document.getElementById('play');
+
+  function parseEther(x){const [w,f='']=String(x).split('.');const frac=(f+'0'.repeat(18)).slice(0,18);return '0x'+(BigInt(w)*10n**18n+BigInt(frac)).toString(16)}
+  async function getProvider(){try{const p=await sdk.wallet.getEthereumProvider(); if(p) return p;}catch{} return window.ethereum??null}
+  async function ensureChain(p,chainId){const c=(await p.request({method:'eth_chainId'}))?.toLowerCase(); if(c===chainId.toLowerCase())return; try{await p.request({method:'wallet_switchEthereumChain',params:[{chainId}]});}
+    catch(e){if(e?.code===4902){await p.request({method:'wallet_addEthereumChain',params:[{chainId}]}); await p.request({method:'wallet_switchEthereumChain',params:[{chainId}]});} else throw e;}}
+
+  async function requiredPayment(){
+    statusEl.innerHTML='<b>Connecting wallet…</b>';
+    const provider = await getProvider();
+    if(!provider){statusEl.innerHTML+=' <span class="err">No wallet detected.</span>'; throw new Error('NO_PROVIDER')}
+    const [from] = await provider.request({method:'eth_requestAccounts'});
+    await ensureChain(provider, TARGET.chainId);
+    statusEl.innerHTML += `<div>Sending ${AMOUNT_ETH} ETH to ${RECIPIENT.slice(0,6)}…${RECIPIENT.slice(-4)}</div>`;
+    const hash = await provider.request({method:'eth_sendTransaction', params:[{from,to:RECIPIENT,value:parseEther(AMOUNT_ETH)}]});
+    statusEl.innerHTML += `<div class="ok">TX sent! <a target="_blank" href="${TARGET.explorer}${hash}">View TX</a></div>`;
+    return hash;
+  }
+
+  function showGame(){document.getElementById('intro').style.display='none';
+    document.getElementById('hud').style.display='flex'; document.getElementById('stage').style.display='block';
+    document.getElementById('best').textContent='Best: '+(Number(localStorage.getItem('astroBest')||0));
+    reset(); startLoop();}
+
+  async function payThenStart(btn){
+    try{btn.disabled=true; await requiredPayment(); showGame();}
+    catch(e){statusEl.innerHTML += '<div class="err">Payment cancelled or failed.</div>'}
+    finally{btn.disabled=false}
+  }
+
+  playBtn.addEventListener('click',e=>{e.preventDefault(); payThenStart(playBtn)});
+</script>
+</body>
+</html>
 
