@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Astro Runner — Mini App</title>
+<title>Astro Runner — Farcaster Mini App</title>
 <style>
   :root {
     --bg-dark: #070a12;
@@ -16,8 +16,6 @@
     --err: #ff7b7b;
   }
 
-  * { box-sizing: border-box; }
-
   body {
     margin: 0;
     background: radial-gradient(1200px 600px at 50% -10%, #121a2d 0, var(--bg-dark) 60%);
@@ -27,9 +25,7 @@
     overflow: hidden;
   }
 
-  a { color: #66ccff; text-decoration: none; }
-
-  /* ---------- DASHBOARD ---------- */
+  /* Dashboard */
   #dashboard {
     display: flex;
     flex-direction: column;
@@ -47,6 +43,12 @@
     width: 380px;
   }
 
+  h1 {
+    color: var(--accent);
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+  }
+
   .avatar {
     width: 80px;
     height: 80px;
@@ -55,15 +57,8 @@
     box-shadow: 0 0 15px rgba(168, 85, 247, 0.35);
   }
 
-  .username {
-    font-size: 1.2rem;
-    font-weight: 600;
-  }
-
-  .status {
-    color: var(--ok);
-    margin-bottom: 16px;
-  }
+  .username { font-size: 1.2rem; font-weight: 600; }
+  .status { color: var(--ok); margin-bottom: 16px; }
 
   .stats {
     display: flex;
@@ -71,20 +66,17 @@
     gap: 16px;
     margin-bottom: 18px;
   }
-
   .stat-box {
     background: rgba(168, 85, 247, 0.08);
     border: 1px solid rgba(168, 85, 247, 0.35);
     border-radius: 12px;
     padding: 10px 18px;
   }
-
   .stat-value {
     color: var(--accent);
     font-size: 1.4rem;
     font-weight: 700;
   }
-
   .stat-label {
     color: var(--text-muted);
     font-size: 0.8rem;
@@ -105,21 +97,32 @@
     font-weight: 800;
     cursor: pointer;
     font-size: 1rem;
-    transition: background 0.2s ease-in-out, transform 0.15s ease-in-out;
+    transition: background 0.2s ease, transform 0.15s ease;
   }
 
-  .btn:hover {
-    background: var(--accent-hover);
-    transform: scale(1.03);
-  }
+  .btn:hover { background: var(--accent-hover); transform: scale(1.03); }
 
-  /* ---------- GAME LAYOUT ---------- */
+  /* Game + HUD */
   #gameWrap { display: none; height: 100vh; }
   #hud { display: none; gap: 12px; align-items: center; justify-content: center; padding: 10px; }
-  .chip { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.35); color: var(--accent); border-radius: 999px; padding: 8px 12px; font-weight: 700; }
+  .chip {
+    background: rgba(168, 85, 247, 0.08);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-weight: 700;
+  }
   canvas#game { display: block; width: 100vw; height: calc(100vh - 120px); border: 0; background: transparent; }
 
-  dialog { border: none; border-radius: 16px; background: var(--bg-panel); color: var(--text-main); padding: 22px; max-width: min(92vw,420px); }
+  dialog {
+    border: none;
+    border-radius: 16px;
+    background: var(--bg-panel);
+    color: var(--text-main);
+    padding: 22px;
+    max-width: min(92vw, 420px);
+  }
   dialog::backdrop { background: rgba(0,0,0,.6); }
 </style>
 </head>
@@ -127,7 +130,7 @@
 
 <!-- DASHBOARD -->
 <section id="dashboard">
-  <h1 style="color:var(--accent)">🚀 ASTRO RUNNER</h1>
+  <h1>🚀 ASTRO RUNNER</h1>
   <div class="dashboard-box">
     <img src="https://i.postimg.cc/qNb0Js7F/astro-runner-thumb.png" class="avatar" alt="avatar">
     <div class="username" id="userName">@Player</div>
@@ -170,67 +173,127 @@
   <button onclick="closeLeaderboard()" class="btn" style="margin-top:10px;">Close</button>
 </dialog>
 
-<script>
-/********************
- * ASTRO RUNNER GAME
- ********************/
-let cvs, ctx, t=0, dt=0, last=0, raf=0, playing=false, paused=false;
-let player={x:0,y:0,r:16,vx:0,vy:0,dash:0,dashCD:0}, obstacles=[], stars=[];
-let score=0, best=Number(localStorage.getItem('astroBest')||0);
+<!-- FARCASTER SDK + GAME LOGIC -->
+<script type="module">
+  import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
+  sdk.actions.ready();
 
-function initGame(){
-  cvs=document.getElementById('game');
-  ctx=cvs.getContext('2d');
-  resize();
-  for(let i=0;i<160;i++) stars.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,z:Math.random()*1.5+0.2});
-  reset();
-}
-function reset(){
-  obstacles.length=0; score=0;
-  player.x=innerWidth*0.15; player.y=innerHeight*0.5;
-  player.vx=player.vy=player.dash=player.dashCD=0;
-}
-function spawnObstacle(){
-  const size=20+Math.random()*30, y=Math.random()*(innerHeight-60)+30;
-  obstacles.push({x:innerWidth+20,y:y-size,w:size*2,h:size*2});
-}
-function update(time){
-  dt=(time-last)/1000||0; last=time; if(paused||!playing){raf=requestAnimationFrame(update);return draw();}
-  t+=dt; if(Math.random()<0.02) spawnObstacle();
-  player.vx*=0.92; player.vy*=0.92; player.x+=player.vx*dt*60; player.y+=player.vy*dt*60;
-  for(const s of stars){s.x-=(1.5+s.z)*100*dt;if(s.x<-2){s.x=innerWidth+50;s.y=Math.random()*innerHeight;}}
-  for(const o of obstacles){o.x-=300*dt;} obstacles=obstacles.filter(o=>o.x>-40);
-  for(const o of obstacles){if(rectCircle(o,player)) return endGame();}
-  score+=dt*10; draw(); raf=requestAnimationFrame(update);
-}
-function draw(){
-  ctx.clearRect(0,0,innerWidth,innerHeight);
-  ctx.fillStyle='#0a1222';ctx.fillRect(0,0,innerWidth,innerHeight);
-  ctx.fillStyle='#2d3360';for(const s of stars)ctx.fillRect(s.x,s.y,2,2);
-  ctx.fillStyle=varAccent();ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#a855f7';for(const o of obstacles)ctx.fillRect(o.x,o.y,o.w,o.h);
-  document.getElementById('score').textContent='Score: '+Math.floor(score);
-}
-function rectCircle(o,p){const cx=Math.max(o.x,Math.min(p.x,o.x+o.w)),cy=Math.max(o.y,Math.min(p.y,o.y+o.h));const dx=p.x-cx,dy=p.y-cy;return dx*dx+dy*dy<p.r*p.r;}
-function varAccent(){return getComputedStyle(document.documentElement).getPropertyValue('--accent');}
-function startGame(){document.getElementById('dashboard').style.display='none';document.getElementById('gameWrap').style.display='block';playing=true;paused=false;last=performance.now();raf=requestAnimationFrame(update);}
-function endGame(){playing=false;document.getElementById('final').textContent='Score: '+Math.floor(score);document.getElementById('over').showModal();saveStats();}
-function saveStats(){const best=Math.max(localStorage.getItem('astroBest')||0,Math.floor(score));localStorage.setItem('astroBest',best);const games=(Number(localStorage.getItem('astroGames'))||0)+1;localStorage.setItem('astroGames',games);localStorage.setItem('astroLast',Math.floor(score));updateDashboard();}
-function updateDashboard(){document.getElementById('bestScore').textContent=localStorage.getItem('astroBest')||0;document.getElementById('gamesPlayed').textContent=localStorage.getItem('astroGames')||0;document.getElementById('lastScore').textContent=localStorage.getItem('astroLast')||0;}
-function resize(){cvs.width=innerWidth;cvs.height=innerHeight;}
-window.onresize=resize;
+  const RECIPIENT = '0x8C6e7978ee3324196ea7e478830fF9cD4AD7D507'; // change to your wallet
+  const AMOUNT_ETH = '0.00001';
 
-// Leaderboard (local example)
-function showLeaderboard(){const data=JSON.parse(localStorage.getItem('astroLeaderboard')||'[]');const table=document.getElementById('leaderboardTable');table.innerHTML='<tr><th>Player</th><th>Wallet</th><th>Score</th></tr>'+data.map(d=>`<tr><td>${d.handle}</td><td>${d.wallet}</td><td>${d.score}</td></tr>`).join('');document.getElementById('leaderboardModal').showModal();}
-function closeLeaderboard(){document.getElementById('leaderboardModal').close();}
+  async function payToPlay() {
+    try {
+      const provider = await sdk.wallet.getEthereumProvider();
+      const [from] = await provider.request({ method: 'eth_requestAccounts' });
+      const tx = await provider.request({
+        method: 'eth_sendTransaction',
+        params: [{ from, to: RECIPIENT, value: parseEther(AMOUNT_ETH) }]
+      });
+      console.log('Payment sent:', tx);
+      startGame();
+    } catch (err) {
+      alert('Payment failed or cancelled.');
+      console.error(err);
+    }
+  }
 
-// Controls
-document.getElementById('startBtn').onclick=()=>{startGame();};
-document.getElementById('again').onclick=()=>{document.getElementById('over').close();startGame();};
-document.getElementById('leaderboardBtn').onclick=showLeaderboard;
+  function parseEther(x) {
+    const [w, f = ''] = String(x).split('.');
+    const frac = (f + '0'.repeat(18)).slice(0, 18);
+    return '0x' + (BigInt(w) * 10n ** 18n + BigInt(frac)).toString(16);
+  }
 
-// Init
-updateDashboard();initGame();
+  /* GAME */
+  let cvs, ctx, t=0, dt=0, last=0, raf=0, playing=false, paused=false;
+  let player={x:0,y:0,r:16,vx:0,vy:0,dash:0,dashCD:0}, obstacles=[], stars=[];
+  let score=0, best=Number(localStorage.getItem('astroBest')||0);
+
+  function initGame(){
+    cvs=document.getElementById('game');
+    ctx=cvs.getContext('2d');
+    resize();
+    for(let i=0;i<160;i++) stars.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,z:Math.random()*1.5+0.2});
+    reset();
+  }
+
+  function reset(){
+    obstacles.length=0; score=0;
+    player.x=innerWidth*0.15; player.y=innerHeight*0.5;
+    player.vx=player.vy=player.dash=player.dashCD=0;
+  }
+
+  function spawnObstacle(){
+    const size=20+Math.random()*30, y=Math.random()*(innerHeight-60)+30;
+    obstacles.push({x:innerWidth+20,y:y-size,w:size*2,h:size*2});
+  }
+
+  function update(time){
+    dt=(time-last)/1000||0; last=time;
+    if(paused||!playing){raf=requestAnimationFrame(update);return draw();}
+    t+=dt; if(Math.random()<0.02) spawnObstacle();
+    player.vx*=0.92; player.vy*=0.92; player.x+=player.vx*dt*60; player.y+=player.vy*dt*60;
+    for(const s of stars){s.x-=(1.5+s.z)*100*dt;if(s.x<-2){s.x=innerWidth+50;s.y=Math.random()*innerHeight;}}
+    for(const o of obstacles){o.x-=300*dt;} obstacles=obstacles.filter(o=>o.x>-40);
+    for(const o of obstacles){if(rectCircle(o,player)) return endGame();}
+    score+=dt*10; draw(); raf=requestAnimationFrame(update);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    ctx.fillStyle='#0a1222';ctx.fillRect(0,0,innerWidth,innerHeight);
+    ctx.fillStyle='#2d3360';for(const s of stars)ctx.fillRect(s.x,s.y,2,2);
+    ctx.fillStyle='var(--accent)';ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#a855f7';for(const o of obstacles)ctx.fillRect(o.x,o.y,o.w,o.h);
+    document.getElementById('score').textContent='Score: '+Math.floor(score);
+  }
+
+  function rectCircle(o,p){const cx=Math.max(o.x,Math.min(p.x,o.x+o.w)),cy=Math.max(o.y,Math.min(p.y,o.y+o.h));const dx=p.x-cx,dy=p.y-cy;return dx*dx+dy*dy<p.r*p.r;}
+
+  function startGame(){
+    document.getElementById('dashboard').style.display='none';
+    document.getElementById('gameWrap').style.display='block';
+    playing=true;paused=false;last=performance.now();
+    raf=requestAnimationFrame(update);
+  }
+
+  function endGame(){
+    playing=false;
+    document.getElementById('final').textContent='Score: '+Math.floor(score);
+    document.getElementById('over').showModal();
+    saveStats();
+  }
+
+  function saveStats(){
+    const best=Math.max(localStorage.getItem('astroBest')||0,Math.floor(score));
+    localStorage.setItem('astroBest',best);
+    const games=(Number(localStorage.getItem('astroGames'))||0)+1;
+    localStorage.setItem('astroGames',games);
+    localStorage.setItem('astroLast',Math.floor(score));
+    updateDashboard();
+  }
+
+  function updateDashboard(){
+    document.getElementById('bestScore').textContent=localStorage.getItem('astroBest')||0;
+    document.getElementById('gamesPlayed').textContent=localStorage.getItem('astroGames')||0;
+    document.getElementById('lastScore').textContent=localStorage.getItem('astroLast')||0;
+  }
+
+  function resize(){cvs.width=innerWidth;cvs.height=innerHeight;}
+  window.onresize=resize;
+
+  function showLeaderboard(){
+    const data=JSON.parse(localStorage.getItem('astroLeaderboard')||'[]');
+    const table=document.getElementById('leaderboardTable');
+    table.innerHTML='<tr><th>Player</th><th>Wallet</th><th>Score</th></tr>'+data.map(d=>`<tr><td>${d.handle}</td><td>${d.wallet}</td><td>${d.score}</td></tr>`).join('');
+    document.getElementById('leaderboardModal').showModal();
+  }
+  function closeLeaderboard(){document.getElementById('leaderboardModal').close();}
+
+  document.getElementById('startBtn').onclick=payToPlay;
+  document.getElementById('again').onclick=()=>{document.getElementById('over').close();startGame();};
+  document.getElementById('leaderboardBtn').onclick=showLeaderboard;
+
+  updateDashboard();initGame();
 </script>
 </body>
 </html>
