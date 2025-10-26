@@ -5,26 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Astro Runner — Pay to Play</title>
 <style>
-  :root{--bg:#070a12;--fg:#eaf4ff;--brand:#a855f7;--muted:#9fb0c3;--panel:#0b1220;--ok:#9be28a;--err:#ff7b7b}
+  :root {
+    --bg:#070a12;--fg:#eaf4ff;--brand:#a855f7;
+    --muted:#9fb0c3;--panel:#0b1220;
+    --ok:#9be28a;--err:#ff7b7b;
+  }
 
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#121a2d 0,#070a12 60%);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;text-align:center;overflow:hidden}
+  body{
+    margin:0;
+    background:radial-gradient(1200px 600px at 50% -10%,#121a2d 0,#070a12 60%);
+    color:var(--fg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    text-align:center;
+    overflow:hidden;
+  }
   a{color:#66ccff;text-decoration:none}
   .wrap{min-height:100%;display:flex;flex-direction:column}
 
+  /* === Remove white outline === */
+  #game { outline:none; }
+  #game:focus, #game:focus-visible { outline:none; }
+  #game, .fab-btn { -webkit-tap-highlight-color:transparent; }
+
   /* ===== Dashboard ===== */
   #dashboard{
-    position:fixed; inset:0;
-    display:flex; align-items:center; justify-content:center;
-    background:radial-gradient(1000px 600px at 50% -10%, #121a2d 0, #070a12 70%);
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(1000px 600px at 50% -10%,#121a2d 0,#070a12 70%);
     z-index:50;
   }
   .dash-card{
     background:var(--panel);
     border-radius:20px;
     padding:24px 30px;
-    width:min(92vw, 420px);
+    width:min(92vw,420px);
     box-shadow:0 0 28px rgba(168,85,247,0.18);
     text-align:center;
   }
@@ -35,102 +50,94 @@
     background:rgba(168,85,247,.08);
     border:1px solid rgba(168,85,247,.35);
     border-radius:12px;
-    padding:10px 16px; min-width:92px;
+    padding:10px 16px;min-width:92px;
   }
   .dash-stat .v{color:var(--brand);font-weight:800;font-size:1.2rem}
   .dash-stat .k{color:var(--muted);font-size:.8rem}
   .dash-buttons{display:flex;justify-content:center;gap:10px}
-  .btn{background:var(--brand);color:#111;border:none;border-radius:14px;padding:14px 24px;font-weight:800;cursor:pointer}
+  .btn{
+    background:var(--brand);
+    color:#111;
+    border:none;
+    border-radius:14px;
+    padding:14px 24px;
+    font-weight:800;
+    cursor:pointer;
+  }
   .btn[disabled]{opacity:.6;cursor:not-allowed}
 
-  /* Intro (game original) */
+  /* Intro */
   #intro{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px}
   h1{font-size:clamp(2rem,6vw,3rem);margin:0;color:var(--brand)}
   .lead{max-width:560px;color:var(--muted)}
   .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 
-  /* HUD (game original) */
+  /* HUD */
   #hud{display:none;gap:12px;align-items:center;justify-content:center;padding:10px}
-  .chip{background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.35);color:var(--brand);border-radius:999px;padding:8px 12px;font-weight:700}
+  .chip{
+    background:rgba(168,85,247,.08);
+    border:1px solid rgba(168,85,247,.35);
+    color:var(--brand);
+    border-radius:999px;
+    padding:8px 12px;
+    font-weight:700;
+  }
 
-  /* Stage (game original) */
+  /* Stage */
   #stage{display:none;width:100vw;margin:0;padding:0}
   .frame{position:relative;border:0;border-radius:0;background:transparent}
-  canvas#game{display:block;width:100vw;height:calc(100vh - 120px);border-radius:0}
+  canvas#game{
+    display:block;width:100vw;height:calc(100vh - 120px);border-radius:0;
+  }
 
-  /* Legacy #mobile kept to avoid changing your sizing code */
-  #mobile{display:none}
-
-  /* Bottom-right floating controls */
+  /* Floating controls */
   #cornerControls{
-    position:fixed;
-    right:14px;
-    bottom:14px;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
+    position:fixed;right:14px;bottom:14px;
+    display:flex;flex-direction:column;gap:12px;
     z-index:40;
-    pointer-events:auto;
   }
   .fab-btn{
-    width:68px; height:68px;
-    border-radius:50%;
-    border:none;
-    background:#b69cff; /* light purple */
-    color:#fff;
-    font-size:28px;
-    font-weight:900;
-    box-shadow:0 8px 24px rgba(182,156,255,.35), inset 0 0 0 2px rgba(255,255,255,.12);
-    cursor:pointer;
-    user-select:none;
+    width:68px;height:68px;border-radius:50%;
+    border:none;background:#b69cff;color:#fff;
+    font-size:28px;font-weight:900;
+    box-shadow:0 8px 24px rgba(182,156,255,.35),
+                inset 0 0 0 2px rgba(255,255,255,.12);
+    cursor:pointer;user-select:none;
   }
   .fab-btn:active{transform:scale(0.98)}
-  .fab-btn span{position:relative; top:-1px;}
+  .fab-btn span{position:relative;top:-1px;}
 
-  /* Dialog (game original) */
-  dialog{border:none;border-radius:16px;background:#0b1220;color:#fff;padding:22px;max-width:min(92vw,420px)}
+  dialog{
+    border:none;border-radius:16px;background:#0b1220;color:#fff;
+    padding:22px;max-width:min(92vw,420px)
+  }
   dialog::backdrop{background:rgba(0,0,0,.6)}
 </style>
 </head>
 <body>
 
-<!-- ===== Pre-game Dashboard ===== -->
-<section id="dashboard" aria-label="Dashboard">
+<!-- ===== Dashboard ===== -->
+<section id="dashboard">
   <div class="dash-card">
     <h2 class="dash-title">🚀 ASTRO RUNNER</h2>
     <div class="dash-user" id="dashUser">@Player</div>
-
     <div class="dash-stats">
-      <div class="dash-stat">
-        <div class="v" id="dashBest">0</div>
-        <div class="k">BEST</div>
-      </div>
-      <div class="dash-stat">
-        <div class="v" id="dashGames">0</div>
-        <div class="k">GAMES</div>
-      </div>
-      <div class="dash-stat">
-        <div class="v" id="dashLast">0</div>
-        <div class="k">LAST</div>
-      </div>
+      <div class="dash-stat"><div class="v" id="dashBest">0</div><div class="k">BEST</div></div>
+      <div class="dash-stat"><div class="v" id="dashGames">0</div><div class="k">GAMES</div></div>
+      <div class="dash-stat"><div class="v" id="dashLast">0</div><div class="k">LAST</div></div>
     </div>
-
     <div class="dash-buttons">
       <button class="btn" id="dashStart">Start Game</button>
       <button class="btn" id="dashLeaderboard">Leaderboard</button>
     </div>
   </div>
 </section>
-<!-- ===== End Dashboard ===== -->
 
 <div class="wrap">
-  <!-- Keep intro hidden initially; we start from dashboard -->
-  <section id="intro" aria-labelledby="title" style="display:none;">
-    <h1 id="title">🚀 ASTRO RUNNER</h1>
+  <section id="intro" style="display:none;">
+    <h1>🚀 ASTRO RUNNER</h1>
     <p class="lead">Dodge asteroids in this endless runner. Pay a small Base fee to start. Keyboard: ← ↑ ↓ → to move, Space to dash. Mobile controls included.</p>
-    <div class="row">
-      <button class="btn" id="play">Play</button>
-    </div>
+    <div class="row"><button class="btn" id="play">Play</button></div>
     <div id="status"></div>
   </section>
 
@@ -143,18 +150,15 @@
 
   <section id="stage">
     <div class="frame">
-      <canvas id="game" width="960" height="540" tabindex="0" aria-label="Astro Runner"></canvas>
+      <canvas id="game" width="960" height="540" aria-label="Astro Runner"></canvas>
     </div>
   </section>
-
-  <!-- Legacy #mobile (kept hidden) -->
-  <div id="mobile"></div>
 </div>
 
 <!-- Floating Up/Down controls -->
-<div id="cornerControls" aria-label="On-screen controls">
-  <button class="fab-btn" id="upBtn" aria-label="Move up"><span>▲</span></button>
-  <button class="fab-btn" id="downBtn" aria-label="Move down"><span>▼</span></button>
+<div id="cornerControls">
+  <button class="fab-btn" id="upBtn"><span>▲</span></button>
+  <button class="fab-btn" id="downBtn"><span>▼</span></button>
 </div>
 
 <dialog id="over">
@@ -172,482 +176,101 @@
 
 <script>
 /********************
- * ASTRO RUNNER GAME (original, with “stuck key” fix)
+ * ASTRO RUNNER GAME
  ********************/
 let W=window.innerWidth, H=window.innerHeight;
-const rng = (a,b)=>a+Math.random()*(b-a);
+const rng=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 
-let cvs,ctx;let t=0, dt=0, last=0, raf=0; // timing
-let playing=false, paused=false, over=false;
-
+let cvs,ctx,t=0,dt=0,last=0,raf=0,playing=false,paused=false;
 const player={x:W*0.15,y:H*0.5,r:16,vx:0,vy:0,speed:320,dash:0,dashCD:0};
-let obstacles=[]; // {x,y,w,h,type}
-let stars=[]; // parallax
-let score=0, best=Number(localStorage.getItem('astroBest')||0);
+let obstacles=[],stars=[],score=0,best=Number(localStorage.getItem('astroBest')||0);
 
 function initCanvas(){
   cvs=document.getElementById('game');
   ctx=cvs.getContext('2d');
   resizeCanvas();
-  cvs.focus();
-  // stars
+  // cvs.focus(); ← removed to stop white line
   stars.length=0;
-  for(let i=0;i<160;i++){
-    stars.push({x:Math.random()*W,y:Math.random()*H,z:Math.random()*1.5+0.2});
-  }
+  for(let i=0;i<160;i++) stars.push({x:Math.random()*W,y:Math.random()*H,z:Math.random()*1.5+0.2});
 }
 
 function reset(){
-  obstacles.length=0;
-  score=0;
-  player.x=W*0.15; player.y=H*0.5;
-  player.vx=0; player.vy=0;
-  player.dash=0; player.dashCD=0;
-  over=false;
-
-  // Reset difficulty each run
-  t = 0;
-  spawnTimer = 0;
-  spawnEvery = 1.1;
+  obstacles.length=0;score=0;
+  Object.assign(player,{x:W*0.15,y:H*0.5,vx:0,vy:0,dash:0,dashCD:0});
+  over=false;t=0;spawnTimer=0;spawnEvery=1.1;
 }
-
-// *** Spawner — ONLY ASTEROIDS (no poles/walls) ***
 function spawnObstacle(){
-  const size=rng(18,40);
-  const y=rng(50,H-50);
-  obstacles.push({
-    x: W+20,
-    y: y-size,
-    w: size*2,
-    h: size*2,
-    type: 'rock',
-    spin: rng(-2,2),
-    a: 0
-  });
+  const s=rng(18,40),y=rng(50,H-50);
+  obstacles.push({x:W+20,y:y-s,w:s*2,h:s*2,type:'rock',spin:rng(-2,2),a:0});
 }
-
-let spawnTimer=0, spawnEvery=1.1; // seconds
+let spawnTimer=0,spawnEvery=1.1;
 
 function update(time){
-  dt=(time-last)/1000||0; last=time; if(!playing||paused){raf=requestAnimationFrame(update);return draw();}
-  t+=dt; spawnTimer+=dt; if(spawnTimer>spawnEvery){spawnTimer=0; spawnObstacle(); spawnEvery=clamp(spawnEvery-0.01,0.7,2)}
-
-  // Parallax stars
-  for(const s of stars){s.x-= (0.6+s.z)*120*dt; if(s.x<-2){s.x=W+Math.random()*50; s.y=Math.random()*H;}}
-
-  // Player physics
-  const input = inputState();
-  // horizontal
-  const ax=(input.right-input.left)*player.speed*2.5;
-  player.vx += ax*dt;
-  player.vx *= 0.92; // friction
-  player.x += player.vx*dt;
-  player.x = clamp(player.x, 18, W*0.65);
-
-  // vertical
-  const ay=(input.down-input.up)*player.speed*2.0;
-  player.vy += ay*dt;
-  player.vy *= 0.92; // friction
-  player.y += player.vy*dt;
-  player.y = clamp(player.y, 30, H-30);
-
-  // dash
-  player.dashCD = Math.max(0, player.dashCD-dt);
-  if(input.dash && player.dashCD===0){player.dash=0.2; player.dashCD=1.2}
-  if(player.dash>0){player.x += 560*dt; player.dash-=dt}
-
-  // obstacles move
-  const speed = 260 + Math.min(440, t*12);
-  for(const o of obstacles){o.x -= speed*dt; if(o.type==='rock'){o.a+=o.spin*dt}}
-  obstacles = obstacles.filter(o=>o.x+o.w>-40);
-
-  // collisions
-  for(const o of obstacles){ if(rectCircleCollide(o, player)) return endGame(); }
-
-  score += dt*10; // time based
-  draw();
-  raf=requestAnimationFrame(update);
+  dt=(time-last)/1000||0;last=time;
+  if(!playing||paused){raf=requestAnimationFrame(update);return draw();}
+  t+=dt;spawnTimer+=dt;
+  if(spawnTimer>spawnEvery){spawnTimer=0;spawnObstacle();spawnEvery=clamp(spawnEvery-0.01,0.7,2);}
+  for(const s of stars){s.x-=(0.6+s.z)*120*dt;if(s.x<-2){s.x=W+Math.random()*50;s.y=Math.random()*H;}}
+  const i=inputState();
+  const ax=(i.right-i.left)*player.speed*2.5;
+  player.vx+=ax*dt;player.vx*=0.92;player.x+=player.vx*dt;player.x=clamp(player.x,18,W*0.65);
+  const ay=(i.down-i.up)*player.speed*2.0;
+  player.vy+=ay*dt;player.vy*=0.92;player.y+=player.vy*dt;player.y=clamp(player.y,30,H-30);
+  player.dashCD=Math.max(0,player.dashCD-dt);
+  if(i.dash&&player.dashCD===0){player.dash=0.2;player.dashCD=1.2}
+  if(player.dash>0){player.x+=560*dt;player.dash-=dt}
+  const sp=260+Math.min(440,t*12);
+  for(const o of obstacles){o.x-=sp*dt;if(o.type==='rock'){o.a+=o.spin*dt}}
+  obstacles=obstacles.filter(o=>o.x+o.w>-40);
+  for(const o of obstacles){if(rectCircleCollide(o,player))return endGame();}
+  score+=dt*10;draw();raf=requestAnimationFrame(update);
 }
-
-function rectCircleCollide(o,p){ // rough but fast
-  const rx=o.x, ry=o.y, rw=o.w, rh=o.h;
-  const cx=p.x, cy=p.y, r=p.r;
-  const nx=clamp(cx, rx, rx+rw);
-  const ny=clamp(cy, ry, ry+rh);
-  const dx=cx-nx, dy=cy-ny; return (dx*dx+dy*dy) < r*r;
+function rectCircleCollide(o,p){
+  const nx=clamp(p.x,o.x,o.x+o.w),ny=clamp(p.y,o.y,o.y+o.h);
+  const dx=p.x-nx,dy=p.y-ny;return(dx*dx+dy*dy)<p.r*p.r;
 }
-
 function draw(){
   ctx.clearRect(0,0,W,H);
-  // bg stars
-  ctx.fillStyle='#0a1222'; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle='#182442'; for(const s of stars){ctx.fillRect(s.x,s.y,2,2)}
-
-  // player ship (spaceship)
-  drawSpaceship(ctx, player, t);
-
-  // obstacles (asteroids)
-  for(const o of obstacles){
-    ctx.save(); ctx.translate(o.x+o.w/2,o.y+o.h/2); ctx.rotate(o.a||0);
-    ctx.fillStyle='#c4b5fd'; roundedRect(ctx,-o.w/2,-o.h/2,o.w,o.h,8); ctx.fill(); ctx.restore();
-  }
-
-  // UI
-  document.getElementById('score').textContent = 'Score: '+Math.floor(score);
+  ctx.fillStyle='#0a1222';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#182442';for(const s of stars)ctx.fillRect(s.x,s.y,2,2);
+  drawShip();for(const o of obstacles){ctx.save();ctx.translate(o.x+o.w/2,o.y+o.h/2);ctx.rotate(o.a);ctx.fillStyle='#c4b5fd';ctx.fillRect(-o.w/2,-o.h/2,o.w,o.h);ctx.restore();}
+  document.getElementById('score').textContent='Score: '+Math.floor(score);
 }
-
-function roundedRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
-
-// --- Spaceship renderer ---
-function drawSpaceship(ctx, p, time){
-  ctx.save();
-  ctx.translate(p.x, p.y);
-
-  // Subtle tilt based on vertical speed (max ~20°)
-  const roll = clamp(p.vy / 320, -0.35, 0.35);
-  ctx.rotate(roll);
-
-  // Size baseline
-  const L = 36;     // body length
-  const BW = 18;    // body width
-  const noseL = 10; // nose cone length
-  const tailX = -L/2;
-
-  // Body
-  ctx.fillStyle = '#9dbcfb';
-  roundedRect(ctx, -L/2, -BW/2, L, BW, BW/2);
-  ctx.fill();
-
-  // Nose cone
-  ctx.fillStyle = '#c7d2fe';
-  ctx.beginPath();
-  ctx.moveTo(L/2 + noseL, 0);
-  ctx.lineTo(L/2 - 2, -BW/2 + 2);
-  ctx.lineTo(L/2 - 2,  BW/2 - 2);
-  ctx.closePath();
-  ctx.fill();
-
-  // Wings
-  ctx.fillStyle = '#a78bfa';
-  ctx.beginPath();
-  ctx.moveTo(-6, -BW/2 + 2);
-  ctx.lineTo(-16, -BW/2 - 8);
-  ctx.lineTo(4, -6);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(-6, BW/2 - 2);
-  ctx.lineTo(-16, BW/2 + 8);
-  ctx.lineTo(4, 6);
-  ctx.closePath();
-  ctx.fill();
-
-  // Cockpit
-  ctx.fillStyle = '#0ea5e9';
-  ctx.beginPath();
-  ctx.ellipse(8, 0, 6, 7, 0, 0, Math.PI*2);
-  ctx.fill();
-
-  // Engine flame (kept as original yellow for contrast)
-  const flicker = 1 + 0.4 * Math.sin((time||0) * 40);
-  const flameLen = (p.dash > 0 ? 26 : 16) * flicker;
-
-  ctx.fillStyle = '#fde047';
-  ctx.beginPath();
-  ctx.moveTo(tailX - flameLen, 0);
-  ctx.lineTo(tailX, -5);
-  ctx.lineTo(tailX,  5);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.globalAlpha = 0.6;
-  ctx.fillStyle = '#fbbf24';
-  ctx.beginPath();
-  ctx.moveTo(tailX - flameLen*0.6, 0);
-  ctx.lineTo(tailX, -3);
-  ctx.lineTo(tailX,  3);
-  ctx.closePath();
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
+function drawShip(){
+  const p=player;ctx.save();ctx.translate(p.x,p.y);
+  const roll=clamp(p.vy/320,-0.35,0.35);ctx.rotate(roll);
+  ctx.fillStyle='#9dbcfb';ctx.fillRect(-18,-9,36,18);
+  ctx.fillStyle='#c7d2fe';ctx.fillRect(14,-9,10,18);
+  ctx.fillStyle='#a78bfa';ctx.fillRect(-10,-13,8,26);
   ctx.restore();
 }
-
-// ——— Input ———
 const keys=new Set();
-function inputState(){return {left: keys.has('ArrowLeft')||keys.has('KeyA'), right: keys.has('ArrowRight')||keys.has('KeyD'), up: keys.has('ArrowUp')||keys.has('KeyW'), down: keys.has('ArrowDown')||keys.has('KeyS'), dash: keys.has('Space')}}
-addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyA','KeyD','KeyW','KeyS'].includes(e.code)){keys.add(e.code); e.preventDefault()}})
+function inputState(){return{left:keys.has('ArrowLeft'),right:keys.has('ArrowRight'),up:keys.has('ArrowUp'),down:keys.has('ArrowDown'),dash:keys.has('Space')}}
+addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)){keys.add(e.code);e.preventDefault()}})
 addEventListener('keyup',e=>keys.delete(e.code))
-
-// on-screen buttons (desktop + mobile)
-function wireMobile(){
-  const bindPress = (id, code) => {
-    const el = document.getElementById(id);
-    if(!el) return;
-    const press = e => { keys.add(code); e.preventDefault(); e.stopPropagation(); };
-    const release = e => { keys.delete(code); e.preventDefault(); e.stopPropagation(); };
-    el.addEventListener('touchstart', press, {passive:false});
-    el.addEventListener('touchend',   release);
-    el.addEventListener('touchcancel',release);
-    el.addEventListener('mousedown',  press);
-    el.addEventListener('mouseup',    release);
-    el.addEventListener('mouseleave', release);
-    el.addEventListener('pointercancel', release);
-  };
-  bindPress('upBtn','ArrowUp');
-  bindPress('downBtn','ArrowDown');
-  // legacy ids (no-ops unless added back)
-  bindPress('up','ArrowUp'); bindPress('down','ArrowDown');
-  bindPress('left','ArrowLeft'); bindPress('right','ArrowRight'); bindPress('dash','Space');
+function wireButtons(){
+  const bind=(id,c)=>{const el=document.getElementById(id);if(!el)return;el.onmousedown=()=>keys.add(c);el.onmouseup=()=>keys.delete(c);el.ontouchstart=e=>{e.preventDefault();keys.add(c)};el.ontouchend=e=>{e.preventDefault();keys.delete(c)}};bind('upBtn','ArrowUp');bind('downBtn','ArrowDown');
 }
-
-function startLoop(){
-  keys.clear(); /* FIX: ensure no stuck inputs before run */
-  playing=true; paused=false;
-  document.getElementById('hud').style.display='flex';
-  document.getElementById('stage').style.display='block';
-  cancelAnimationFrame(raf); last=performance.now(); raf=requestAnimationFrame(update);
-}
-
-function pauseToggle(){paused=!paused; document.getElementById('pause').textContent = paused?'Resume':'Pause'; if(!paused) last=performance.now()}
-
-function endGame(){playing=false; over=true; best=Math.max(best, Math.floor(score)); localStorage.setItem('astroBest', best);
-  document.getElementById('best').textContent='Best: '+best;
-  document.getElementById('final').textContent='Score: '+Math.floor(score);
-  document.getElementById('over').showModal();}
-
-// Leaderboard logic (original)
-function getLeaderboard(){return JSON.parse(localStorage.getItem('astroLeaderboard')||'[]');}
-function setLeaderboard(lb){localStorage.setItem('astroLeaderboard', JSON.stringify(lb.slice(0,10)));}
-// keep function (unused)
-function saveCurrentScore(){const name=(document.getElementById('nameInput')?.value||'Anon').slice(0,20); const s=Math.floor(score); const lb=getLeaderboard(); lb.push({name,score:s,ts:Date.now()}); lb.sort((a,b)=>b.score-a.score||a.ts-b.ts); setLeaderboard(lb); showLeaderboard();}
-function showLeaderboard(){const lb=getLeaderboard(); const list=document.getElementById('boardList'); list.innerHTML=lb.length? lb.map((e,i)=>`<li>#${i+1} ${e.name} — ${e.score}</li>`).join('') : '<li>No scores yet.</li>'; document.getElementById('board').showModal();}
-
-function revive(){document.getElementById('over').close(); reset(); startLoop()}
-
-// ——— Boot ———
-initCanvas(); wireMobile();
-addEventListener('resize',()=>{resizeCanvas()});
-
-// HUD buttons
-document.getElementById('pause').addEventListener('click',pauseToggle);
-
-// Leaderboard buttons
-document.getElementById('showBoard').addEventListener('click',()=>showLeaderboard());
-document.getElementById('closeBoard').addEventListener('click',()=>document.getElementById('board').close());
-
-// ——— Self-tests (non-destructive, run on load) ———
-(function runTests(){
-  const results=[]; const assert=(name,cond)=>results.push({name,pass:!!cond});
-  assert('clamp low', clamp(-5,0,10)===0);
-  assert('clamp mid', clamp(5,0,10)===5);
-  assert('clamp high', clamp(15,0,10)===10);
-  assert('rectCircleCollide hit', rectCircleCollide({x:0,y:0,w:3,h:3},{x:5,y:5,r:4})===true);
-  assert('rectCircleCollide miss', rectCircleCollide({x:0,y:0,w:3,h:3},{x:20,y:20,r:2})===false);
-  keys.clear(); keys.add('ArrowUp'); let st=inputState();
-  assert('input up true', st.up===true);
-  assert('input left false', st.left===false);
-  const before=obstacles.length; spawnObstacle(); const added=obstacles.length-before; assert('spawnObstacle adds', added>0);
-  const newObs=obstacles.slice(before); assert('obstacle numeric x', newObs.every(o=>typeof o.x==='number'));
-  assert('stars initialised', stars.length>=120);
-  assert('play button exists', !!document.getElementById('play'));
-  try{ wireMobile(); assert('wireMobile ok', true);}catch{ assert('wireMobile ok', false); }
-  /* FIX: release any simulated inputs after tests */
-  keys.clear();
-  const ok=results.every(r=>r.pass); const statusEl=document.getElementById('status');
-  const html=`<details style="margin-top:8px"><summary>Self-tests: ${ok?'ALL PASS ✅':'Some failed ❌'}</summary><ul>`+
-    results.map(r=>`<li>${r.pass?'✅':'❌'} ${r.name}</li>`).join('')+`</ul></details>`;
-  statusEl.insertAdjacentHTML('beforeend', html);
-  console.log('Self-tests', results);
-})();
-
-// ——— Fullscreen sizing ———
-function resizeCanvas(){
-  const hud = document.getElementById('hud');
-  const mobile = document.getElementById('mobile'); // legacy container (hidden)
-  const topH = hud && hud.style.display!=='none' ? hud.getBoundingClientRect().height : 0;
-  const mobileVisible = mobile ? (getComputedStyle(mobile).display !== 'none') : false;
-  const bottomH = mobileVisible ? mobile.getBoundingClientRect().height + 12 : 0;
-  W = window.innerWidth;
-  H = Math.max(200, Math.floor(window.innerHeight - topH - bottomH));
-  const dpr = window.devicePixelRatio || 1;
-  cvs.width = Math.max(1, W * dpr);
-  cvs.height = Math.max(1, H * dpr);
-  cvs.style.width = W + 'px';
-  cvs.style.height = H + 'px';
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-}
+function startLoop(){keys.clear();playing=true;paused=false;document.getElementById('hud').style.display='flex';document.getElementById('stage').style.display='block';cancelAnimationFrame(raf);last=performance.now();raf=requestAnimationFrame(update);}
+function pauseToggle(){paused=!paused;document.getElementById('pause').textContent=paused?'Resume':'Pause';if(!paused)last=performance.now()}
+function endGame(){playing=false;best=Math.max(best,Math.floor(score));localStorage.setItem('astroBest',best);document.getElementById('best').textContent='Best: '+best;document.getElementById('final').textContent='Score: '+Math.floor(score);document.getElementById('over').showModal();}
+initCanvas();wireButtons();
 </script>
 
-<!-- ——— FARCASTER MINIAPP PAYMENT (Base) + DASHBOARD & LEADERBOARD WIRING ——— -->
 <script type="module">
-  import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
-  sdk.actions.ready();
-
-  const RECIPIENT = '0x8C6e7978ee3324196ea7e478830fF9cD4AD7D507'; // TODO: replace with your address
-  const AMOUNT_ETH = '0.00001';
-  const USE_BASE_SEPOLIA = false;
-
-  // Proper chain descriptors so wallet_addEthereumChain can succeed
-  const BASE_MAINNET = {
-    chainId: '0x2105',                  // 8453
-    chainName: 'Base',
-    rpcUrls: ['https://mainnet.base.org'],
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-    blockExplorerUrls: ['https://basescan.org']
-  };
-  const BASE_SEPOLIA = {
-    chainId: '0x14a34',                 // 84532
-    chainName: 'Base Sepolia',
-    rpcUrls: ['https://sepolia.base.org'],
-    nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
-    blockExplorerUrls: ['https://sepolia.basescan.org']
-  };
-  const TARGET = USE_BASE_SEPOLIA ? BASE_SEPOLIA : BASE_MAINNET;
-
-  const statusEl = document.getElementById('status');
-  const playBtn = document.getElementById('play');
-  const againBtn = document.getElementById('again');
-
-  // --- Dashboard helpers ---
-  let CURRENT_HANDLE = '@Player';
-  let CURRENT_WALLET = '';
-
-  // Try to get Farcaster viewer for display name
-  try {
-    const viewer = await sdk.viewer.getUser();
-    if (viewer?.username) {
-      CURRENT_HANDLE = '@' + viewer.username;
-      document.getElementById('dashUser').textContent = CURRENT_HANDLE;
-    }
-  } catch {}
-
-  function refreshDashboard(){
-    const best = Number(localStorage.getItem('astroBest')||0);
-    const games = Number(localStorage.getItem('astroGames')||0);
-    const last = Number(localStorage.getItem('astroLast')||0);
-    document.getElementById('dashBest').textContent = best;
-    document.getElementById('dashGames').textContent = games;
-    document.getElementById('dashLast').textContent = last;
-  }
-  refreshDashboard();
-
-  function parseEther(x){
-    const [w,f='']=String(x).split('.');
-    const frac=(f+'0'.repeat(18)).slice(0,18);
-    return '0x'+(BigInt(w)*10n**18n+BigInt(frac)).toString(16);
-  }
-
-  async function getProvider(){
-    try{ const p = await sdk.wallet.getEthereumProvider(); if(p) return p; }catch{}
-    return window.ethereum ?? null;
-  }
-
-  async function ensureChain(p, chain){
-    const current = (await p.request({method:'eth_chainId'}))?.toLowerCase();
-    if(current === chain.chainId.toLowerCase()) return;
-    try{
-      await p.request({ method:'wallet_switchEthereumChain', params:[{ chainId: chain.chainId }] });
-    }catch(e){
-      if(e?.code === 4902){
-        await p.request({ method:'wallet_addEthereumChain', params:[ chain ] });
-        await p.request({ method:'wallet_switchEthereumChain', params:[{ chainId: chain.chainId }] });
-      }else{
-        throw e;
-      }
-    }
-  }
-
-  async function requiredPayment(){
-    statusEl.innerHTML='<b>Connecting wallet…</b>';
-    const provider = await getProvider();
-    if(!provider){statusEl.innerHTML+=' <span class="err">No wallet detected.</span>'; throw new Error('NO_PROVIDER')}
-    const [from] = await provider.request({method:'eth_requestAccounts'});
-    CURRENT_WALLET = from; // remember wallet for leaderboard
-
-    await ensureChain(provider, TARGET);
-
-    statusEl.innerHTML += `<div>Sending ${AMOUNT_ETH} ETH to ${RECIPIENT.slice(0,6)}…${RECIPIENT.slice(-4)}</div>`;
-    const hash = await provider.request({
-      method:'eth_sendTransaction',
-      params:[{ from, to:RECIPIENT, value:parseEther(AMOUNT_ETH) }]
-    });
-    const explorerBase = (TARGET.blockExplorerUrls && TARGET.blockExplorerUrls[0]) || '';
-    statusEl.innerHTML += `<div class="ok">TX sent! ${explorerBase ? `<a target="_blank" href="${explorerBase}/tx/${hash}">View TX</a>` : ''}</div>`;
-    return hash;
-  }
-
-  function showGame(){
-    document.getElementById('intro').style.display='none';
-    document.getElementById('hud').style.display='flex';
-    document.getElementById('stage').style.display='block';
-    document.getElementById('best').textContent='Best: '+(Number(localStorage.getItem('astroBest')||0));
-    reset(); startLoop();
-  }
-
-  async function payThenStart(btn){
-    try{
-      btn.disabled=true;
-      await requiredPayment();
-      const overDlg = document.getElementById('over');
-      if (overDlg && overDlg.open) overDlg.close();
-      showGame();
-    }catch(e){
-      statusEl.innerHTML += '<div class="err">Payment cancelled or failed.</div>';
-    }finally{
-      btn.disabled=false;
-    }
-  }
-
-  // First run: pay then play
-  playBtn.addEventListener('click',e=>{e.preventDefault(); payThenStart(playBtn)});
-  // Replay: require payment again
-  againBtn.addEventListener('click',e=>{e.preventDefault(); payThenStart(againBtn)});
-
-  // ===== Dashboard wiring =====
-  document.getElementById('dashStart').addEventListener('click', ()=>{
-    document.getElementById('intro').style.display='flex';   // show original intro for status text
-    document.getElementById('dashboard').style.display='none';
-    document.getElementById('play').click();                 // trigger your exact original flow
-  });
-
-  document.getElementById('dashLeaderboard').addEventListener('click', ()=>{
-    if (typeof showLeaderboard === 'function') showLeaderboard();
-    else document.getElementById('board').showModal();
-  });
-
-  // Save score to local leaderboard when Game Over opens
-  function addScoreToLeaderboard(score){
-    const shortWallet = CURRENT_WALLET ? `${CURRENT_WALLET.slice(0,6)}…${CURRENT_WALLET.slice(-4)}` : '—';
-    const entryName = `${CURRENT_HANDLE} · ${shortWallet}`;
-    const lb = JSON.parse(localStorage.getItem('astroLeaderboard') || '[]');
-    lb.push({ name: entryName, score: Number(score), ts: Date.now() });
-    lb.sort((a,b)=> b.score-a.score || a.ts-b.ts);
-    localStorage.setItem('astroLeaderboard', JSON.stringify(lb.slice(0,10)));
-  }
-
-  const overDlg = document.getElementById('over');
-  const dlgObserver = new MutationObserver(()=> {
-    if (overDlg.open) {
-      const txt = document.getElementById('final')?.textContent || 'Score: 0';
-      const lastScore = Number(txt.replace(/\D+/g,'') || 0);
-
-      const prevBest = Number(localStorage.getItem('astroBest')||0);
-      const best = Math.max(prevBest, lastScore);
-      const games = (Number(localStorage.getItem('astroGames'))||0) + 1;
-      localStorage.setItem('astroBest', best);
-      localStorage.setItem('astroGames', games);
-      localStorage.setItem('astroLast', lastScore);
-      // (dashboard stats will reflect next time it's opened)
-
-      addScoreToLeaderboard(lastScore);
-    }
-  });
-  dlgObserver.observe(overDlg, { attributes:true, attributeFilter:['open'] });
-
-  // Keep dashboard visible on first load
-  document.getElementById('dashboard').style.display='flex';
-</script>
-</body>
-</html>
+import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
+sdk.actions.ready();
+const RECIPIENT='0x8C6e7978ee3324196ea7e478830fF9cD4AD7D507';
+const AMOUNT_ETH='0.00001';
+const USE_BASE_SEPOLIA=false;
+const BASE_MAINNET={chainId:'0x2105',chainName:'Base',rpcUrls:['https://mainnet.base.org'],nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},blockExplorerUrls:['https://basescan.org']};
+const BASE_SEPOLIA={chainId:'0x14a34',chainName:'Base Sepolia',rpcUrls:['https://sepolia.base.org'],nativeCurrency:{name:'Sepolia Ether',symbol:'ETH',decimals:18},blockExplorerUrls:['https://sepolia.basescan.org']};
+const TARGET=USE_BASE_SEPOLIA?BASE_SEPOLIA:BASE_MAINNET;
+const statusEl=document.getElementById('status'),playBtn=document.getElementById('play'),againBtn=document.getElementById('again');
+let CURRENT_HANDLE='@Player';try{const v=await sdk.viewer.getUser();if(v?.username){CURRENT_HANDLE='@'+v.username;document.getElementById('dashUser').textContent=CURRENT_HANDLE;}}catch{}
+function parseEther(x){const[w,f='']=String(x).split('.');const frac=(f+'0'.repeat(18)).slice(0,18);return'0x'+(BigInt(w)*10n**18n+BigInt(frac)).toString(16);}
+async function getProvider(){try{const p=await sdk.wallet.getEthereumProvider();if(p)return p;}catch{}return window.ethereum??null;}
+async function ensureChain(p,c){const ch=(await p.request({method:'eth_chainId'}))?.toLowerCase();if(ch===c.chainId.toLowerCase())return;try{await p.request({method:'wallet_switchEthereumChain',params:[{chainId:c.chainId}]});}catch(e){if(e?.code===4902){await p.request({method:'wallet_addEthereumChain',params:[c]});await p.request({method:'wallet_switchEthereumChain',params:[{chainId:c.chainId}]});}else throw e;}}
+async function requiredPayment(){statusEl.innerHTML='<b>Connecting wallet…</b>';const p=await getProvider();if(!p){statusEl.innerHTML+=' <span class="err">No wallet.</span>';throw new Error('NO_PROVIDER');}const [from]=await p.request({method:'eth_requestAccounts'});await ensureChain(p,TARGET);statusEl.innerHTML+=`<div>Sending ${AMOUNT_ETH} ETH…</div>`;const h=await p.request({method:'eth_sendTransaction',params:[{from,to:RECIPIENT,value:parseEther(AMOUNT_ETH)}]});statusEl.innerHTML+=`<div class="ok">TX sent! <a target="_blank" href="${TARGET.blockExplorerUrls[0]}/tx/${h}">View TX</a></div>`;return h;}
+function showGame(){document
