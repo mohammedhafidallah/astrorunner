@@ -13,7 +13,7 @@
   a{color:#66ccff;text-decoration:none}
   .wrap{min-height:100%;display:flex;flex-direction:column}
 
-  /* ===== Dashboard (ADDED) ===== */
+  /* ===== Dashboard ===== */
   #dashboard{
     position:fixed; inset:0;
     display:flex; align-items:center; justify-content:center;
@@ -58,10 +58,10 @@
   .frame{position:relative;border:0;border-radius:0;background:transparent}
   canvas#game{display:block;width:100vw;height:calc(100vh - 120px);border-radius:0}
 
-  /* Mobile (legacy container kept hidden so original sizing code stays safe) */
+  /* Legacy #mobile kept to avoid changing your sizing code */
   #mobile{display:none}
 
-  /* Bottom-right floating controls (NEW) */
+  /* Bottom-right floating controls */
   #cornerControls{
     position:fixed;
     right:14px;
@@ -86,7 +86,7 @@
   }
   .fab-btn:active{transform:scale(0.98)}
   .fab-btn span{position:relative; top:-1px;}
-  
+
   /* Dialog (game original) */
   dialog{border:none;border-radius:16px;background:#0b1220;color:#fff;padding:22px;max-width:min(92vw,420px)}
   dialog::backdrop{background:rgba(0,0,0,.6)}
@@ -94,7 +94,7 @@
 </head>
 <body>
 
-<!-- ===== Pre-game Dashboard (ADDED) ===== -->
+<!-- ===== Pre-game Dashboard ===== -->
 <section id="dashboard" aria-label="Dashboard">
   <div class="dash-card">
     <h2 class="dash-title">🚀 ASTRO RUNNER</h2>
@@ -147,11 +147,11 @@
     </div>
   </section>
 
-  <!-- Legacy #mobile kept to avoid changing your sizing code -->
+  <!-- Legacy #mobile (kept hidden) -->
   <div id="mobile"></div>
 </div>
 
-<!-- Floating Up/Down controls (NEW) -->
+<!-- Floating Up/Down controls -->
 <div id="cornerControls" aria-label="On-screen controls">
   <button class="fab-btn" id="upBtn" aria-label="Move up"><span>▲</span></button>
   <button class="fab-btn" id="downBtn" aria-label="Move down"><span>▼</span></button>
@@ -172,7 +172,7 @@
 
 <script>
 /********************
- * ASTRO RUNNER GAME  (original logic kept)
+ * ASTRO RUNNER GAME (original, with “stuck key” fix)
  ********************/
 let W=window.innerWidth, H=window.innerHeight;
 const rng = (a,b)=>a+Math.random()*(b-a);
@@ -380,9 +380,8 @@ function inputState(){return {left: keys.has('ArrowLeft')||keys.has('KeyA'), rig
 addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyA','KeyD','KeyW','KeyS'].includes(e.code)){keys.add(e.code); e.preventDefault()}})
 addEventListener('keyup',e=>keys.delete(e.code))
 
-// mobile/desktop on-screen buttons (NEW but backward-compatible)
+// on-screen buttons (desktop + mobile)
 function wireMobile(){
-  // helper to bind both touch and mouse for an element id
   const bindPress = (id, code) => {
     const el = document.getElementById(id);
     if(!el) return;
@@ -396,20 +395,18 @@ function wireMobile(){
     el.addEventListener('mouseleave', release);
     el.addEventListener('pointercancel', release);
   };
-
-  // New floating buttons
   bindPress('upBtn','ArrowUp');
   bindPress('downBtn','ArrowDown');
-
-  // (Optional) support legacy ids if you ever add them back
-  bindPress('up','ArrowUp');
-  bindPress('down','ArrowDown');
-  bindPress('left','ArrowLeft');
-  bindPress('right','ArrowRight');
-  bindPress('dash','Space');
+  // legacy ids (no-ops unless added back)
+  bindPress('up','ArrowUp'); bindPress('down','ArrowDown');
+  bindPress('left','ArrowLeft'); bindPress('right','ArrowRight'); bindPress('dash','Space');
 }
 
-function startLoop(){playing=true; paused=false; document.getElementById('hud').style.display='flex'; document.getElementById('stage').style.display='block';
+function startLoop(){
+  keys.clear(); /* FIX: ensure no stuck inputs before run */
+  playing=true; paused=false;
+  document.getElementById('hud').style.display='flex';
+  document.getElementById('stage').style.display='block';
   cancelAnimationFrame(raf); last=performance.now(); raf=requestAnimationFrame(update);
 }
 
@@ -423,7 +420,7 @@ function endGame(){playing=false; over=true; best=Math.max(best, Math.floor(scor
 // Leaderboard logic (original)
 function getLeaderboard(){return JSON.parse(localStorage.getItem('astroLeaderboard')||'[]');}
 function setLeaderboard(lb){localStorage.setItem('astroLeaderboard', JSON.stringify(lb.slice(0,10)));}
-// keep function (unused) to avoid breaking anything referencing it
+// keep function (unused)
 function saveCurrentScore(){const name=(document.getElementById('nameInput')?.value||'Anon').slice(0,20); const s=Math.floor(score); const lb=getLeaderboard(); lb.push({name,score:s,ts:Date.now()}); lb.sort((a,b)=>b.score-a.score||a.ts-b.ts); setLeaderboard(lb); showLeaderboard();}
 function showLeaderboard(){const lb=getLeaderboard(); const list=document.getElementById('boardList'); list.innerHTML=lb.length? lb.map((e,i)=>`<li>#${i+1} ${e.name} — ${e.score}</li>`).join('') : '<li>No scores yet.</li>'; document.getElementById('board').showModal();}
 
@@ -456,6 +453,8 @@ document.getElementById('closeBoard').addEventListener('click',()=>document.getE
   assert('stars initialised', stars.length>=120);
   assert('play button exists', !!document.getElementById('play'));
   try{ wireMobile(); assert('wireMobile ok', true);}catch{ assert('wireMobile ok', false); }
+  /* FIX: release any simulated inputs after tests */
+  keys.clear();
   const ok=results.every(r=>r.pass); const statusEl=document.getElementById('status');
   const html=`<details style="margin-top:8px"><summary>Self-tests: ${ok?'ALL PASS ✅':'Some failed ❌'}</summary><ul>`+
     results.map(r=>`<li>${r.pass?'✅':'❌'} ${r.name}</li>`).join('')+`</ul></details>`;
@@ -640,7 +639,7 @@ function resizeCanvas(){
       localStorage.setItem('astroBest', best);
       localStorage.setItem('astroGames', games);
       localStorage.setItem('astroLast', lastScore);
-      refreshDashboard();
+      // (dashboard stats will reflect next time it's opened)
 
       addScoreToLeaderboard(lastScore);
     }
